@@ -1,0 +1,19 @@
+version: '3.2'
+services:
+    dbsync-remote:
+        image: openjdk:17-alpine
+        command: /home/eip/install.sh
+        container_name: dbsync-remote
+        network_mode: host
+        environment:
+            - curr_git_branch=V11.0.0
+        env_file:
+            - ./dbsync/eip.env
+        working_dir: /home/eip
+        volumes: 
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ./dbsync/scripts/install.sh:/home/eip/install.sh
+            - ./dbsync/:/home/openmrs-eip-docker
+            - ./dbsync/shared:/home/eip/shared
+        restart: unless-stopped
