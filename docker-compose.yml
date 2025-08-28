@@ -47,6 +47,7 @@ services:
       - ./tomcat/conf/setenv.sh:/usr/local/tomcat/bin/setenv.sh:ro
       - ./tomcat/data/webapps:/usr/local/tomcat/webapps
       - ./tomcat/data/OpenMRS:/usr/local/tomcat/.OpenMRS
+      - ./tomcat/data/tools/mysqldump:/usr/bin/mysqldump
       - ./tomcat/logs:/usr/local/tomcat/logs
     healthcheck:
       test: "/usr/bin/mysql --user=root --password=root --execute \"SHOW DATABASES;\""
