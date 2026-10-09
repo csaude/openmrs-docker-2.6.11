@@ -49,6 +49,12 @@ services:
       - ./tomcat/data/OpenMRS:/usr/local/tomcat/.OpenMRS
       - ./tomcat/data/tools/mysqldump:/usr/bin/mysqldump
       - ./tomcat/logs:/usr/local/tomcat/logs
+
+      # ETL - sis-rme-data-migration
+      #- ${sync_etl_dir}:/opt/openmrs/etl
+
+      # ETL - Modulo OMOD
+      # - ${sync_etl_dir}/app/etl-1.0.omod:/usr/local/tomcat/.OpenMRS/modules/etl-1.0.omod
     healthcheck:
       test: "/usr/bin/mysql --user=root --password=root --execute \"SHOW DATABASES;\""
       interval: 2s
