@@ -37,22 +37,34 @@ Follow the container logs using
 docker logs --follow openmrs-eip-sender
 ```
 
-## **## SIS-RME to OpenMRS Synchronization Installation**
+## **## SIS-RME to OpenMRS Synchronization Activation**
 
-This section describes how to configure SIS-RME to OpenMRS synchronization using the ETL module.
+## SIS-RME to OpenMRS Synchronization Activation
 
-### 1. Configure the ETL directory
+This section describes how to activate SIS-RME to OpenMRS synchronization using the ETL module.
 
-Configure the `sync_etl_dir` variable in the `.env` file to point to the `etl` directory of the `sis-rme-data-migration` repository.
+### 1. Clone the data-migration repository
 
-```dotenv
-sync_etl_dir=etl_mig_directory
-```
+Clone the `sis-rme-data-migration` repository to a directory on the host where the OpenMRS Docker Compose deployment runs.
 
-Replace `etl_mig_directory` with the actual absolute or relative path to the ETL directory in your environment.
+If the repository has already been cloned, use the existing local copy.
 
-The directory must contain the ETL configuration files, templates, scripts, and the module file at:
+git clone <sis-rme-data-migration-repository-url>
 
+### 2. Configure the ETL directory
+
+Edit the `.env` file of this Docker Compose project and configure `sync_etl_dir` to point to the `etl` directory inside the previously cloned `sis-rme-data-migration` repository.
+
+# Directory containing the SIS-RME data-migration ETL files
+sync_etl_dir=<path-to-cloned-repository>/etl
+
+Replace `<path-to-cloned-repository>` with the actual path to the repository cloned in Step 1. The path may be absolute or relative to the directory containing the Docker Compose file.
+
+For example, if the repository was cloned to `/opt/sis-rme-data-migration`, configure:
+
+sync_etl_dir=/opt/sis-rme-data-migration/etl
+
+The configured ETL directory must contain the ETL configuration files, templates, scripts, and OMOD module, including:
 
 etl/
 ├── app/
@@ -61,32 +73,33 @@ etl/
     └── sync/
         └── sis_rme_sesp_sync.json
 
-
-### 2. Configure Docker Compose
+### 3. Configure Docker Compose volume mounts
 
 Ensure that the `refapp-tomcat` service contains the following volume mounts:
 
-
+# ETL configuration, templates and scripts
 - ${sync_etl_dir}:/opt/openmrs/etl
+
+# ETL OpenMRS module
 - ${sync_etl_dir}/app/etl-1.0.omod:/usr/local/tomcat/.OpenMRS/modules/etl-1.0.omod
 
-These mounts make the ETL configuration available to the container and provide the ETL OMOD module to OpenMRS.
+These mounts provide the ETL files and module to the OpenMRS container.
 
-### 3. Validate the configuration
+### 4. Verify the configuration
 
-Before starting the services, verify that the ETL directory and OMOD file exist at the configured location.
+From the directory containing the Docker Compose file, verify that the configured ETL directory and OMOD file exist.
 
-Validate the resolved Docker Compose configuration:
+Validate the resolved Compose configuration:
 
 docker compose config
 
-Ensure that both ETL volume mounts resolve to the expected host paths.
+Ensure that both ETL mounts resolve to the expected host paths before proceeding.
 
-### 4. Configure ETL Global Properties
+### 5. Verify ETL Global Properties
 
-Verify that the ETL Global Properties in OpenMRS point to the correct configuration paths:
+In OpenMRS, verify that the ETL Global Properties point to the correct configuration paths:
 
-| Property                  | Value                                               |
+| Global Property           | Expected value                                      |
 | ------------------------- | --------------------------------------------------- |
 | `epts.etl.enabled`        | `true`                                              |
 | `epts.etl.mode`           | `db_synchronization`                                |
@@ -95,19 +108,20 @@ Verify that the ETL Global Properties in OpenMRS point to the correct configurat
 | `epts.etl.startup.file`   | `/opt/openmrs/etl/conf/sync/sis_rme_sesp_sync.json` |
 | `epts.etl.sync_fragments` | `sync/sesp-sync-fragments/*.json`                   |
 
-Also verify the source and destination database connection properties, credentials, destination location ID, and any required program and service IDs.
+Also verify the source and destination database connection properties, credentials, destination location ID, and other required synchronization properties.
 
-### 5. Start and verify synchronization
+### 6. Start and verify synchronization
 
-Start or update the services:
+Apply the Docker Compose configuration:
 
 docker compose up -d
 
-Follow the Tomcat logs:
+If the ETL module is newly installed or has been updated, ensure that OpenMRS loads it successfully. A controlled Tomcat restart may be required.
+
+Monitor the Tomcat logs:
 
 docker logs -f --tail 100 refapp-tomcat
 
-Confirm that the ETL module loads successfully, the startup configuration and synchronization fragments are found, the database connections succeed, and synchronization events are processed without unexpected errors.
+Confirm that the ETL module loads, the startup configuration and synchronization fragments are found, database connections succeed, and synchronization events are processed without unexpected errors.
 
-A running container alone does not confirm that synchronization is working correctly; always verify the ETL logs and processing status.
-
+A running container does not, by itself, confirm that synchronization is working correctly. Verify the ETL logs and event processing status.
