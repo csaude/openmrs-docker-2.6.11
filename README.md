@@ -37,34 +37,37 @@ Follow the container logs using
 docker logs --follow openmrs-eip-sender
 ```
 
-## **## SIS-RME to OpenMRS Synchronization Activation**
-
 ## SIS-RME to OpenMRS Synchronization Activation
 
 This section describes how to activate SIS-RME to OpenMRS synchronization using the ETL module.
 
 ### 1. Clone the data-migration repository
 
-Clone the `sis-rme-data-migration` repository to a directory on the host where the OpenMRS Docker Compose deployment runs.
+Clone the [sis-rme-data-migration repository](https://github.com/MISAU-DIS/sis-rme-data-migration) to a directory on the host where the OpenMRS Docker Compose deployment runs.
 
 If the repository has already been cloned, use the existing local copy.
 
-git clone <sis-rme-data-migration-repository-url>
+git clone https://github.com/MISAU-DIS/sis-rme-data-migration.git
 
 ### 2. Configure the ETL directory
 
-Edit the `.env` file of this Docker Compose project and configure `sync_etl_dir` to point to the `etl` directory inside the previously cloned `sis-rme-data-migration` repository.
+First, create the .env file by copying .env.sample in the Docker Compose project directory:
+
+cp .env.sample .env
+
+Edit the newly created .env file and configure sync_etl_dir to point to the etl directory inside the previously cloned sis-rme-data-migration repository.
+
 
 # Directory containing the SIS-RME data-migration ETL files
 sync_etl_dir=<path-to-cloned-repository>/etl
 
-Replace `<path-to-cloned-repository>` with the actual path to the repository cloned in Step 1. The path may be absolute or relative to the directory containing the Docker Compose file.
+Replace `<path-to-cloned-repository>` with the actual path to the cloned repository. The path may be absolute or relative to the directory containing the Docker Compose file.
 
 For example, if the repository was cloned to `/opt/sis-rme-data-migration`, configure:
 
 sync_etl_dir=/opt/sis-rme-data-migration/etl
 
-The configured ETL directory must contain the ETL configuration files, templates, scripts, and OMOD module, including:
+Ensure that the configured ETL directory contains the required configuration files, templates, scripts, and OMOD module, including:
 
 etl/
 ├── app/
@@ -75,21 +78,23 @@ etl/
 
 ### 3. Configure Docker Compose volume mounts
 
-Ensure that the `refapp-tomcat` service contains the following volume mounts:
+In the `docker-compose.yml` file, locate the `refapp-tomcat` service and its `volumes` section.
 
-# ETL configuration, templates and scripts
+The ETL volume mount lines are already present in the configuration but may be commented out. Uncomment both lines to enable the ETL configuration and OMOD mounts:
+
+# ETL - sis-rme-data-migration
 - ${sync_etl_dir}:/opt/openmrs/etl
 
-# ETL OpenMRS module
+# ETL - ETL module (OMOD)
 - ${sync_etl_dir}/app/etl-1.0.omod:/usr/local/tomcat/.OpenMRS/modules/etl-1.0.omod
 
-These mounts provide the ETL files and module to the OpenMRS container.
+These entries must be placed under the `volumes` section of the `refapp-tomcat` service, alongside the existing volume mounts.
 
 ### 4. Verify the configuration
 
-From the directory containing the Docker Compose file, verify that the configured ETL directory and OMOD file exist.
+From the directory containing the Docker Compose file, verify that the ETL directory and OMOD file exist at the configured locations.
 
-Validate the resolved Compose configuration:
+Validate the resolved Docker Compose configuration:
 
 docker compose config
 
@@ -118,10 +123,16 @@ docker compose up -d
 
 If the ETL module is newly installed or has been updated, ensure that OpenMRS loads it successfully. A controlled Tomcat restart may be required.
 
-Monitor the Tomcat logs:
+#### Monitor synchronization through the OpenMRS interface
 
-docker logs -f --tail 100 refapp-tomcat
+In OpenMRS, navigate to the synchronization monitoring interface module:
 
-Confirm that the ETL module loads, the startup configuration and synchronization fragments are found, database connections succeed, and synchronization events are processed without unexpected errors.
+**Sincronização
+Painel de Sincronização SIS-RME → SESP** also **SIS-RME → SESP Synchronization Dashboard**
 
-A running container does not, by itself, confirm that synchronization is working correctly. Verify the ETL logs and event processing status.
+Use the **SIS-RME → SESP Synchronization Dashboard** to monitor the synchronization process and verify that events are being processed.
+
+Confirm that the synchronization is running as expected and check for pending events, processing errors, or failed records, as applicable.
+
+A running container does not, by itself, confirm that synchronization is working correctly. Always verify the synchronization status through the monitoring dashboard.
+
