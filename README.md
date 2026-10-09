@@ -43,7 +43,7 @@ This section describes how to activate SIS-RME to OpenMRS synchronization using 
 
 ### 1. Clone the data-migration repository
 
-Clone the [sis-rme-data-migration repository](https://github.com/MISAU-DIS/sis-rme-data-migration) to a directory on the host where the OpenMRS Docker Compose deployment runs.
+Clone the [`sis-rme-data-migration`](https://github.com/MISAU-DIS/sis-rme-data-migration) repository to a directory on the host where the OpenMRS Docker Compose deployment runs.
 
 If the repository has already been cloned, use the existing local copy.
 
@@ -51,12 +51,11 @@ git clone https://github.com/MISAU-DIS/sis-rme-data-migration.git
 
 ### 2. Configure the ETL directory
 
-First, create the .env file by copying .env.sample in the Docker Compose project directory:
+Create the `.env` file from `.env.sample`, if it does not already exist:
 
 cp .env.sample .env
 
-Edit the newly created .env file and configure sync_etl_dir to point to the etl directory inside the previously cloned sis-rme-data-migration repository.
-
+Open `.env` and locate the commented `sync_etl_dir` entry. Uncomment it and set it to the `etl` directory inside the repository cloned in Step 1.
 
 # Directory containing the SIS-RME data-migration ETL files
 sync_etl_dir=<path-to-cloned-repository>/etl
@@ -67,7 +66,7 @@ For example, if the repository was cloned to `/opt/sis-rme-data-migration`, conf
 
 sync_etl_dir=/opt/sis-rme-data-migration/etl
 
-Ensure that the configured ETL directory contains the required configuration files, templates, scripts, and OMOD module, including:
+Verify that the configured directory contains the required ETL files, including the module and synchronization configuration:
 
 etl/
 ├── app/
@@ -76,63 +75,124 @@ etl/
     └── sync/
         └── sis_rme_sesp_sync.json
 
-### 3. Configure Docker Compose volume mounts
+### 3. Enable the Docker Compose volume mounts
 
-In the `docker-compose.yml` file, locate the `refapp-tomcat` service and its `volumes` section.
+In `docker-compose.yml`, locate the `refapp-tomcat` service and its `volumes` section.
 
-The ETL volume mount lines are already present in the configuration but may be commented out. Uncomment both lines to enable the ETL configuration and OMOD mounts:
+The following volume mounts are already present but commented out. Uncomment both entries:
 
-# ETL - sis-rme-data-migration
+
+# ETL configuration, templates and scripts
 - ${sync_etl_dir}:/opt/openmrs/etl
 
-# ETL - ETL module (OMOD)
+# ETL OpenMRS module (OMOD)
 - ${sync_etl_dir}/app/etl-1.0.omod:/usr/local/tomcat/.OpenMRS/modules/etl-1.0.omod
 
-These entries must be placed under the `volumes` section of the `refapp-tomcat` service, alongside the existing volume mounts.
+These mounts make the ETL configuration files available inside the OpenMRS container and provide the ETL module to OpenMRS.
 
-### 4. Verify the configuration
+### 4. Validate the configuration and start OpenMRS
 
-From the directory containing the Docker Compose file, verify that the ETL directory and OMOD file exist at the configured locations.
-
-Validate the resolved Docker Compose configuration:
+From the directory containing the Docker Compose file, validate the configuration:
 
 docker compose config
 
-Ensure that both ETL mounts resolve to the expected host paths before proceeding.
+Confirm that both ETL volume mounts resolve to the expected host paths and that the OMOD file exists.
 
-### 5. Verify ETL Global Properties
-
-In OpenMRS, verify that the ETL Global Properties point to the correct configuration paths:
-
-| Global Property           | Expected value                                      |
-| ------------------------- | --------------------------------------------------- |
-| `epts.etl.enabled`        | `true`                                              |
-| `epts.etl.mode`           | `db_synchronization`                                |
-| `epts.etl.conf.dir`       | `/opt/openmrs/etl/conf`                             |
-| `epts.etl.etl_root_dir`   | `/opt/openmrs/etl`                                  |
-| `epts.etl.startup.file`   | `/opt/openmrs/etl/conf/sync/sis_rme_sesp_sync.json` |
-| `epts.etl.sync_fragments` | `sync/sesp-sync-fragments/*.json`                   |
-
-Also verify the source and destination database connection properties, credentials, destination location ID, and other required synchronization properties.
-
-### 6. Start and verify synchronization
-
-Apply the Docker Compose configuration:
+Start the services:
 
 docker compose up -d
 
-If the ETL module is newly installed or has been updated, ensure that OpenMRS loads it successfully. A controlled Tomcat restart may be required.
+On the first startup, OpenMRS must load the ETL module so that its Global Properties become available for configuration.
 
-#### Monitor synchronization through the OpenMRS interface
+The `epts.etl.enabled` Global Property defaults to `false`. Leave this default unchanged during the initial setup so that synchronization does not start before the required configuration has been verified.
 
-In OpenMRS, navigate to the synchronization monitoring interface module:
+### 5. Configure the ETL Global Properties
 
-**Sincronização
-Painel de Sincronização SIS-RME → SESP** also **SIS-RME → SESP Synchronization Dashboard**
+After OpenMRS has loaded the ETL module, access the OpenMRS administration interface and navigate to **Administration → Settings → EPTS**.
 
-Use the **SIS-RME → SESP Synchronization Dashboard** to monitor the synchronization process and verify that events are being processed.
+In the EPTS module settings, configure the Global Properties required for the synchronization to work in the target environment.
 
-Confirm that the synchronization is running as expected and check for pending events, processing errors, or failed records, as applicable.
+#### 5.1. Database connection properties
 
-A running container does not, by itself, confirm that synchronization is working correctly. Always verify the synchronization status through the monitoring dashboard.
+The ETL module connects to two databases:
 
+* **Source:** `openmrs_event_receiver_mgt`, which stores synchronization messages produced by NiFi.
+* **Destination:** `openmrs`, the OpenMRS database into which the data is synchronized.
+
+Under normal deployment conditions, the source database should already exist and its message table should be populated by the NiFi pipeline.
+
+For information on configuring the NiFi pipeline, refer to the **SIS-RME/NiFi integration guide**: [Insert link to the NiFi integration guide].
+
+Update and verify the following Global Properties in the EPTS module settings:
+
+| Global Property             | Purpose                                                     |
+| --------------------------- | ----------------------------------------------------------- |
+| `epts.etl.srcConnectionURI` | JDBC connection URI for the source database                 |
+| `epts.etl.srcUserName`      | Username used to connect to the source database             |
+| `epts.etl.srcUserPassword`  | Password used to connect to the source database             |
+| `epts.etl.dstConnectionURI` | JDBC connection URI for the OpenMRS destination database    |
+| `epts.etl.dstUserName`      | Username used to connect to the destination database        |
+| `epts.etl.dstUserPassword`  | Password used to connect to the destination database        |
+| `epts.etl.src_db`           | Source database name; normally `openmrs_event_receiver_mgt` |
+| `epts.etl.dst_db`           | Destination database name; normally `openmrs`               |
+
+The connection URIs must use a hostname or IP address and port reachable from the Tomcat container. Use the appropriate address and port for the deployment environment.
+
+Example connection URIs:
+
+epts.etl.srcConnectionURI=jdbc:mysql://<database-host>:<database-port>/openmrs_event_receiver_mgt?autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+epts.etl.dstConnectionURI=jdbc:mysql://<database-host>:<database-port>/openmrs?autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+
+Replace `<database-host>` and `<database-port>` with the correct database address and port. If the databases run in Docker, use the appropriate hostname and port for the network configuration.
+
+Set the database usernames and passwords to valid credentials with the required permissions. Do not retain default credentials in a production environment or commit real passwords to the repository.
+
+#### 5.2. Other synchronization properties
+
+Review and configure the other Global Properties required by the deployment. Depending on the synchronization templates, these may include:
+
+| Global Property                         | Purpose                                                   |
+| --------------------------------------- | --------------------------------------------------------- |
+| `epts.etl.sync_destination_location_id` | Destination location ID                                   |
+| `epts.etl.hiv.destination.location.id`  | Destination location ID for HIV synchronization           |
+| `epts.etl.smi.destination.location.id`  | Destination location ID for SMI synchronization           |
+| `epts.etl.src.location.list`            | List of source location IDs or codes                      |
+| `epts.etl.tarv.program.id`              | Destination TARV program ID                               |
+| `epts.etl.prep.program.id`              | Destination PrEP program ID                               |
+| `epts.etl.ccr.program.id`               | Destination CCR program ID                                |
+| `epts.etl.dst_tarv_service_id`          | Destination TARV service ID                               |
+| `epts.etl.dst_prep_service_id`          | Destination PrEP service ID                               |
+| `epts.etl.dst_ccr_service_id`           | Destination CCR service ID                                |
+| `epts.etl.defaultUserId`                | Default OpenMRS user ID, if required by the configuration |
+
+Use the correct IDs for the target OpenMRS installation. Do not copy values from another environment without verifying them.
+
+Before proceeding, confirm that:
+
+* The ETL configuration and startup files are available inside the container.
+* The source database exists and receives messages from NiFi.
+* The source and destination connection URIs, credentials, and database names are correct.
+* The required location, program, service, and user IDs are configured for the target environment.
+* `epts.etl.enabled` remains `false` until the configuration has been verified.
+
+### 6. Activate synchronization
+
+Once all required Global Properties have been configured and verified, return to the EPTS module settings and change:
+
+epts.etl.enabled=true
+
+Save the change, then restart the Tomcat container:
+
+docker restart refapp-tomcat
+
+Allow OpenMRS and the ETL module to start. With `epts.etl.enabled=true` and the required configuration in place, synchronization should start automatically.
+
+### 7. Verify synchronization in the OpenMRS interface
+
+In the OpenMRS module list, locate the synchronization dashboard and navigate to:
+
+**Sincronização → Painel de Sincronização SIS-RME → SESP**
+
+Use this dashboard to verify that synchronization events are being processed and to inspect pending or failed records.
+
+A running Docker container alone does not confirm that synchronization is working correctly. Confirm that events are being processed through the dashboard and investigate any pending or failed records before considering the activation complete.
