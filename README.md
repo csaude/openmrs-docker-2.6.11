@@ -175,6 +175,16 @@ Before proceeding, confirm that:
 * The required location, program, service, and user IDs are configured for the target environment.
 * `epts.etl.enabled` remains `false` until the configuration has been verified.
 
+The ETL configuration also supports connecting to the OpenMRS REST API. Configure the following properties in the EPTS module settings:
+
+| Global Property   |	Description	                                           |  Initial value                       |
+|---------------------------------------------------------------------------------------------------------------------|
+| openmrs_base_url  |	Base URL of the OpenMRS instance accessible to the ETL |  http://refapp-tomcat:8080/openmrs   |
+| openmrs_username  |	Username used to authenticate with the OpenMRS API	   |  empty initially                     |
+| openmrs_password  |	Password used to authenticate with the OpenMRS API	   |  empty initially                     |
+
+For Docker deployments, refapp-tomcat can be used instead of 127.0.0.1, provided the ETL process resolves this hostname and can reach the OpenMRS service on port 8080.
+
 ### 6. Activate synchronization
 
 Once all required Global Properties have been configured and verified, return to the EPTS module settings and change:
