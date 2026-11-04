@@ -23,10 +23,16 @@ Project can be used to either run an 2.6.11 instance or upgrade an 2.3.x instanc
     
 3. Start the project 
 
-```
-    docker compose -f docker compose dbdsync up -d
+    1. Make the script executable
+    ```
+        chmod +x dbsync.sh
+    ```
 
-````
+    2. Start the project and follow the prompt steps
+    ```
+        ./dbsync.sh --enable
+
+    ````
 
 
 
